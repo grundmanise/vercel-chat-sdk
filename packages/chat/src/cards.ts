@@ -58,6 +58,8 @@ export type TextStyle = "plain" | "bold" | "muted";
 
 /** Button element for interactive actions */
 export interface ButtonElement {
+  /** If true, the button is displayed in an inactive state and doesn't respond to user actions */
+  disabled?: boolean;
   /** Unique action ID for callback routing */
   id: string;
   /** Button label text */
@@ -67,8 +69,6 @@ export interface ButtonElement {
   type: "button";
   /** Optional payload value sent with action callback */
   value?: string;
-  /** If true, the button is displayed in an inactive state and doesn't respond to user actions */
-  disabled?: boolean;
 }
 
 /** Link button element that opens a URL */
@@ -334,6 +334,8 @@ export function Actions(
 
 /** Options for Button */
 export interface ButtonOptions {
+  /** If true, the button is displayed in an inactive state and doesn't respond to user actions */
+  disabled?: boolean;
   /** Unique action ID for callback routing */
   id: string;
   /** Button label text */
@@ -342,8 +344,6 @@ export interface ButtonOptions {
   style?: ButtonStyle;
   /** Optional payload value sent with action callback */
   value?: string;
-  /** If true, the button is displayed in an inactive state and doesn't respond to user actions */
-  disabled?: boolean;
 }
 
 /**
