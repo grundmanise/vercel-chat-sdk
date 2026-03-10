@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Adapters",
   description:
     "Browse official and community adapters for Chat SDK. Connect your bot to Slack, Teams, Discord, and more.",
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 const AdaptersPage = () => (
