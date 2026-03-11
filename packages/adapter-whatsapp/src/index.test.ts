@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { splitMessage, WhatsAppAdapter } from "./index";
+import { createHmac } from "node:crypto";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from "vitest";
+import { createWhatsAppAdapter, splitMessage, WhatsAppAdapter } from "./index";
+
+const NOT_SUPPORTED_PATTERN = /not support/i;
+const ACCESS_TOKEN_PATTERN = /accessToken/i;
+const APP_SECRET_PATTERN = /appSecret/i;
 
 /**
  * Create a minimal WhatsAppAdapter for testing thread ID methods.
@@ -590,5 +603,497 @@ describe("splitMessage", () => {
     const text = "x".repeat(10000);
     const result = splitMessage(text);
     expect(result.join("")).toBe(text);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers shared across the new suites
+// ---------------------------------------------------------------------------
+
+function makeSignature(body: string, secret = "test-secret"): string {
+  return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+}
+
+function makeWebhookPayload(overrides?: {
+  field?: string;
+  hasMessages?: boolean;
+}) {
+  const field = overrides?.field ?? "messages";
+  const hasMessages = overrides?.hasMessages ?? true;
+  return {
+    entry: [
+      {
+        changes: [
+          {
+            field,
+            value: {
+              metadata: { phone_number_id: "123456789" },
+              contacts: [{ profile: { name: "User" }, wa_id: "15551234567" }],
+              ...(hasMessages
+                ? {
+                    messages: [
+                      {
+                        id: "wamid.xxx",
+                        from: "15551234567",
+                        timestamp: "1700000000",
+                        type: "text",
+                        text: { body: "Hello" },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+const mockChat = {
+  processMessage: vi.fn(),
+  processReaction: vi.fn(),
+  processAction: vi.fn(),
+  processModalSubmit: vi.fn(),
+  processModalClose: vi.fn(),
+  processSlashCommand: vi.fn(),
+  processMemberJoinedChannel: vi.fn(),
+  getState: vi.fn(),
+  getUserName: () => "test-bot",
+  getLogger: () => ({
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    debug: () => {},
+  }),
+};
+
+// ---------------------------------------------------------------------------
+// handleWebhook - POST with signature verification
+// ---------------------------------------------------------------------------
+
+describe("handleWebhook - POST signature verification", () => {
+  it("valid signature processes message and returns 200", async () => {
+    const adapter = createTestAdapter();
+    const payload = makeWebhookPayload();
+    const body = JSON.stringify(payload);
+    const sig = makeSignature(body);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": sig,
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(200);
+  });
+
+  it("invalid signature returns 401", async () => {
+    const adapter = createTestAdapter();
+    const body = JSON.stringify(makeWebhookPayload());
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": "sha256=badsignature",
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("missing signature returns 401", async () => {
+    const adapter = createTestAdapter();
+    const body = JSON.stringify(makeWebhookPayload());
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("invalid JSON returns 400", async () => {
+    const adapter = createTestAdapter();
+    const body = "not-json";
+    const sig = makeSignature(body);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": sig,
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(400);
+  });
+
+  it("status update without messages array returns 200 without processing", async () => {
+    const adapter = createTestAdapter();
+    const payload = makeWebhookPayload({ hasMessages: false });
+    const body = JSON.stringify(payload);
+    const sig = makeSignature(body);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": sig,
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleWebhook - POST message processing (initialized adapter)
+// ---------------------------------------------------------------------------
+
+describe("handleWebhook - POST message processing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("text message calls chat.processMessage with correct thread and message", async () => {
+    const adapter = createTestAdapter();
+    await adapter.initialize(mockChat as never);
+
+    const payload = makeWebhookPayload();
+    const body = JSON.stringify(payload);
+    const sig = makeSignature(body);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": sig,
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(200);
+    expect(mockChat.processMessage).toHaveBeenCalledOnce();
+    const [, threadId, message] = mockChat.processMessage.mock.calls[0];
+    expect(threadId).toBe("whatsapp:123456789:15551234567");
+    expect(message.text).toBe("Hello");
+  });
+
+  it("non-messages field change is skipped", async () => {
+    const adapter = createTestAdapter();
+    await adapter.initialize(mockChat as never);
+
+    const payload = makeWebhookPayload({
+      field: "statuses",
+      hasMessages: false,
+    });
+    const body = JSON.stringify(payload);
+    const sig = makeSignature(body);
+    const request = new Request("https://example.com/webhook", {
+      method: "POST",
+      headers: {
+        "x-hub-signature-256": sig,
+        "content-type": "application/json",
+      },
+      body,
+    });
+
+    const response = await adapter.handleWebhook(request);
+    expect(response.status).toBe(200);
+    expect(mockChat.processMessage).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// postMessage
+// ---------------------------------------------------------------------------
+
+describe("postMessage", () => {
+  let fetchSpy: MockInstance;
+
+  const makeGraphApiResponse = () =>
+    new Response(JSON.stringify({ messages: [{ id: "wamid.sent123" }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  beforeEach(() => {
+    fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(() => Promise.resolve(makeGraphApiResponse()));
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it("plain text calls Graph API with correct payload", async () => {
+    const adapter = createTestAdapter();
+    const result = await adapter.postMessage("whatsapp:123456789:15551234567", {
+      markdown: "Hello there",
+    });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain("/123456789/messages");
+    const sent = JSON.parse(init?.body as string);
+    expect(sent.type).toBe("text");
+    expect(sent.to).toBe("15551234567");
+    expect(result.id).toBe("wamid.sent123");
+  });
+
+  it("long message splits and sends multiple requests", async () => {
+    const adapter = createTestAdapter();
+    const longText = "a".repeat(5000);
+    await adapter.postMessage("whatsapp:123456789:15551234567", {
+      markdown: longText,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// editMessage
+// ---------------------------------------------------------------------------
+
+describe("editMessage", () => {
+  it("throws 'not supported' error", async () => {
+    const adapter = createTestAdapter();
+    await expect(
+      adapter.editMessage("whatsapp:123456789:15551234567", "wamid.xxx", {
+        text: "Updated",
+      })
+    ).rejects.toThrow(NOT_SUPPORTED_PATTERN);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteMessage
+// ---------------------------------------------------------------------------
+
+describe("deleteMessage", () => {
+  it("throws 'not supported' error", async () => {
+    const adapter = createTestAdapter();
+    await expect(
+      adapter.deleteMessage("whatsapp:123456789:15551234567", "wamid.xxx")
+    ).rejects.toThrow(NOT_SUPPORTED_PATTERN);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addReaction / removeReaction
+// ---------------------------------------------------------------------------
+
+describe("addReaction / removeReaction", () => {
+  let fetchSpy: MockInstance;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(global, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it("addReaction sends reaction with the given emoji", async () => {
+    const adapter = createTestAdapter();
+    await adapter.addReaction(
+      "whatsapp:123456789:15551234567",
+      "wamid.msg1",
+      "👍"
+    );
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(body.type).toBe("reaction");
+    expect(body.reaction.message_id).toBe("wamid.msg1");
+    expect(body.reaction.emoji).toBeTruthy();
+  });
+
+  it("removeReaction sends reaction with empty emoji", async () => {
+    const adapter = createTestAdapter();
+    await adapter.removeReaction(
+      "whatsapp:123456789:15551234567",
+      "wamid.msg1",
+      "👍"
+    );
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(body.type).toBe("reaction");
+    expect(body.reaction.emoji).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// startTyping
+// ---------------------------------------------------------------------------
+
+describe("startTyping", () => {
+  it("is a no-op and does not throw", async () => {
+    const adapter = createTestAdapter();
+    await expect(
+      adapter.startTyping("whatsapp:123456789:15551234567")
+    ).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchMessages
+// ---------------------------------------------------------------------------
+
+describe("fetchMessages", () => {
+  it("returns empty messages array", async () => {
+    const adapter = createTestAdapter();
+    const result = await adapter.fetchMessages(
+      "whatsapp:123456789:15551234567"
+    );
+    expect(result).toEqual({ messages: [] });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchThread
+// ---------------------------------------------------------------------------
+
+describe("fetchThread", () => {
+  it("returns correct ThreadInfo", async () => {
+    const adapter = createTestAdapter();
+    const info = await adapter.fetchThread("whatsapp:123456789:15551234567");
+    expect(info.id).toBe("whatsapp:123456789:15551234567");
+    expect(info.channelId).toBe("whatsapp:123456789");
+    expect(info.isDM).toBe(true);
+    expect(info.metadata).toEqual({
+      phoneNumberId: "123456789",
+      userWaId: "15551234567",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// openDM
+// ---------------------------------------------------------------------------
+
+describe("openDM", () => {
+  it("returns encoded thread ID for the given user", async () => {
+    const adapter = createTestAdapter();
+    const threadId = await adapter.openDM("15551234567");
+    expect(threadId).toBe("whatsapp:123456789:15551234567");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stream
+// ---------------------------------------------------------------------------
+
+describe("stream", () => {
+  let fetchSpy: MockInstance;
+
+  beforeEach(() => {
+    fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ messages: [{ id: "wamid.streamed" }] }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+      );
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it("buffers async iterable chunks and sends as a single message", async () => {
+    const adapter = createTestAdapter();
+
+    async function* chunks() {
+      yield "Hello";
+      yield " ";
+      yield "world";
+    }
+
+    const result = await adapter.stream(
+      "whatsapp:123456789:15551234567",
+      chunks()
+    );
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(body.text.body).toBe("Hello world");
+    expect(result.id).toBe("wamid.streamed");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createWhatsAppAdapter factory
+// ---------------------------------------------------------------------------
+
+describe("createWhatsAppAdapter", () => {
+  const requiredEnvVars = {
+    WHATSAPP_ACCESS_TOKEN: "env-token",
+    WHATSAPP_APP_SECRET: "env-secret",
+    WHATSAPP_PHONE_NUMBER_ID: "env-phone-id",
+    WHATSAPP_VERIFY_TOKEN: "env-verify",
+  };
+
+  it("throws when accessToken is missing", () => {
+    expect(() =>
+      createWhatsAppAdapter({
+        appSecret: "secret",
+        phoneNumberId: "123",
+        verifyToken: "verify",
+      })
+    ).toThrow(ACCESS_TOKEN_PATTERN);
+  });
+
+  it("throws when appSecret is missing", () => {
+    expect(() =>
+      createWhatsAppAdapter({
+        accessToken: "token",
+        phoneNumberId: "123",
+        verifyToken: "verify",
+      })
+    ).toThrow(APP_SECRET_PATTERN);
+  });
+
+  it("uses environment variables as fallback", () => {
+    const originalEnv = { ...process.env };
+    for (const [key, value] of Object.entries(requiredEnvVars)) {
+      process.env[key] = value;
+    }
+
+    try {
+      const adapter = createWhatsAppAdapter();
+      expect(adapter).toBeInstanceOf(WhatsAppAdapter);
+    } finally {
+      for (const key of Object.keys(requiredEnvVars)) {
+        if (key in originalEnv) {
+          process.env[key] = originalEnv[key];
+        } else {
+          delete process.env[key];
+        }
+      }
+    }
   });
 });

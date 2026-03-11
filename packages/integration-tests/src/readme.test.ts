@@ -57,8 +57,13 @@ function createTempProject(codeBlocks: string[]): string {
       strict: true,
       skipLibCheck: true,
       noEmit: true,
-      // Use typeRoots to find @types/node from the repo
-      typeRoots: [join(REPO_ROOT, "node_modules/@types")],
+      // Use typeRoots to find @types/node from the integration-tests package
+      typeRoots: [
+        join(
+          import.meta.dirname,
+          "../../integration-tests/node_modules/@types"
+        ),
+      ],
       paths: {
         chat: [join(import.meta.dirname, "../../chat/src/index.ts")],
         "@chat-adapter/slack": [
