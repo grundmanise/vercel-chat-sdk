@@ -22,7 +22,7 @@ import type { Logger } from "chat";
 export interface WhatsAppAdapterConfig {
   /** Access token (System User token) for WhatsApp Cloud API calls */
   accessToken: string;
-  /** Meta Graph API version (default: "v21.0") */
+  /** Meta Graph API version (default: "v25.0") */
   apiVersion?: string;
   /** Meta App Secret for webhook HMAC-SHA256 signature verification */
   appSecret: string;
@@ -264,6 +264,13 @@ export interface WhatsAppSendResponse {
   contacts: Array<{ input: string; wa_id: string }>;
   messages: Array<{ id: string }>;
   messaging_product: "whatsapp";
+}
+
+/**
+ * Response from sending a typing indicator via the Cloud API.
+ */
+export interface WhatsAppTypingIndicatorResponse {
+  success: boolean;
 }
 
 /**
