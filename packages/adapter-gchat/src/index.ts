@@ -29,12 +29,7 @@ import type {
   ThreadSummary,
   WebhookOptions,
 } from "chat";
-import {
-  ConsoleLogger,
-  convertEmojiPlaceholders,
-  defaultEmojiResolver,
-  Message,
-} from "chat";
+import { convertEmojiPlaceholders, defaultEmojiResolver, Message } from "chat";
 import { cardToGoogleCard } from "./cards";
 import { GoogleChatFormatConverter } from "./markdown";
 import {
@@ -90,7 +85,7 @@ export interface GoogleChatAdapterBaseConfig {
    * Defaults to GOOGLE_CHAT_IMPERSONATE_USER env var.
    */
   impersonateUser?: string;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("gchat"). */
   logger?: Logger;
   /**
    * Expected audience for Pub/Sub push message JWT verification.
@@ -274,7 +269,7 @@ export class GoogleChatAdapter implements Adapter<GoogleChatThreadId, unknown> {
   private readonly chatApi: chat_v1.Chat;
   private chat: ChatInstance | null = null;
   private state: StateAdapter | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private readonly formatConverter = new GoogleChatFormatConverter();
   private readonly pubsubTopic?: string;
   private readonly credentials?: ServiceAccountCredentials;
@@ -301,15 +296,15 @@ export class GoogleChatAdapter implements Adapter<GoogleChatThreadId, unknown> {
   private warnedNoWebhookVerification = false;
   private warnedNoPubsubVerification = false;
   /** User info cache for display name lookups - initialized later in initialize() */
-  private userInfoCache: UserInfoCache;
+  private userInfoCache!: UserInfoCache;
 
   constructor(
     config: GoogleChatAdapterConfig = {} as GoogleChatAdapterAutoConfig
   ) {
-    this.logger = config.logger ?? new ConsoleLogger("info").child("gchat");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName = config.userName || "bot";
-    // Initialize with null state - will be updated in initialize()
-    this.userInfoCache = new UserInfoCache(null, this.logger);
     this.pubsubTopic =
       config.pubsubTopic ?? process.env.GOOGLE_CHAT_PUBSUB_TOPIC;
     this.impersonateUser =
@@ -420,7 +415,7 @@ export class GoogleChatAdapter implements Adapter<GoogleChatThreadId, unknown> {
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
     this.state = chat.getState();
-    // Update userInfoCache to use the state adapter for persistence
+    this.logger ??= chat.getLogger(this.name);
     this.userInfoCache = new UserInfoCache(this.state, this.logger);
 
     // Restore persisted bot user ID from state (for serverless environments)

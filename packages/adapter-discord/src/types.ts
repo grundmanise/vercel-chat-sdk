@@ -19,7 +19,7 @@ export interface DiscordAdapterConfig {
   applicationId?: string;
   /** Discord bot token. Defaults to DISCORD_BOT_TOKEN env var. */
   botToken?: string;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("discord"). */
   logger?: Logger;
   /** Role IDs that should trigger mention handlers (in addition to direct user mentions). Defaults to DISCORD_MENTION_ROLE_IDS env var (comma-separated). */
   mentionRoleIds?: string[];

@@ -17,7 +17,7 @@ interface GitHubAdapterBaseConfig {
    * Used for self-message detection. If not provided, will be fetched on first API call.
    */
   botUserId?: number;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("github"). */
   logger?: Logger;
   /**
    * Bot username (e.g., "my-bot" or "my-bot[bot]" for GitHub Apps).

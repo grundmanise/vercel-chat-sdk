@@ -38,7 +38,6 @@ import type {
   WebhookOptions,
 } from "chat";
 import {
-  ConsoleLogger,
   convertEmojiPlaceholders,
   defaultEmojiResolver,
   Message,
@@ -69,32 +68,25 @@ export class TeamsAdapter implements Adapter<TeamsThreadId, unknown> {
   private readonly app: App;
   private readonly bridgeAdapter: BridgeHttpAdapter;
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private readonly formatConverter = new TeamsFormatConverter();
   private readonly config: TeamsAdapterConfig;
-  private readonly graphReader: TeamsGraphReader;
+  private graphReader!: TeamsGraphReader;
 
   constructor(config: TeamsAdapterConfig = {}) {
     this.config = config;
-    this.logger = config.logger ?? new ConsoleLogger("info").child("teams");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName = config.userName || "bot";
 
     // Create the BridgeHttpAdapter for serverless dispatch
-    this.bridgeAdapter = new BridgeHttpAdapter(this.logger);
+    this.bridgeAdapter = new BridgeHttpAdapter(config.logger);
 
     // Convert our public config (appId/appPassword/appTenantId) to Teams SDK AppOptions
     this.app = new App({
       ...toAppOptions(config),
       httpServerAdapter: this.bridgeAdapter,
-    });
-
-    this.graphReader = new TeamsGraphReader({
-      botId: this.app.id ?? "",
-      graph: this.app.graph,
-      logger: this.logger,
-      formatConverter: this.formatConverter,
-      getChannelContext: (baseConversationId) =>
-        this.getChannelContext(baseConversationId),
     });
   }
 
@@ -558,6 +550,16 @@ export class TeamsAdapter implements Adapter<TeamsThreadId, unknown> {
 
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
+    this.bridgeAdapter.setLogger(this.logger);
+    this.graphReader = new TeamsGraphReader({
+      botId: this.app.id ?? "",
+      graph: this.app.graph,
+      logger: this.logger,
+      formatConverter: this.formatConverter,
+      getChannelContext: (baseConversationId) =>
+        this.getChannelContext(baseConversationId),
+    });
     this.registerEventHandlers();
     await this.app.initialize();
   }

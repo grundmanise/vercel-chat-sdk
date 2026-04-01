@@ -30,7 +30,7 @@ export interface TeamsAdapterConfig {
   certificate?: TeamsAuthCertificate;
   /** Federated (workload identity) authentication. Maps to managedIdentityClientId in the Teams SDK. */
   federated?: TeamsAuthFederated;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("teams"). */
   logger?: Logger;
   /** Override bot username (optional) */
   userName?: string;

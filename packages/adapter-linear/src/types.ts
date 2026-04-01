@@ -15,7 +15,7 @@ import type { Logger } from "chat";
  * Base configuration options shared by all auth methods.
  */
 interface LinearAdapterBaseConfig {
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("linear"). */
   logger?: Logger;
   /**
    * Bot display name used for @-mention detection.

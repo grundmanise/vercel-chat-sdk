@@ -139,7 +139,7 @@ All options are auto-detected from environment variables when not provided.
 | `accessToken` | No* | Pre-obtained OAuth access token. Auto-detected from `LINEAR_ACCESS_TOKEN` |
 | `webhookSecret` | No** | Webhook signing secret. Auto-detected from `LINEAR_WEBHOOK_SECRET` |
 | `userName` | No | Bot display name. Auto-detected from `LINEAR_BOT_USERNAME` (default: `"linear-bot"`) |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("linear")` when omitted |
 
 *One of `apiKey`, `clientId`/`clientSecret`, or `accessToken` is required (via config or env vars).
 

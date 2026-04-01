@@ -21,7 +21,7 @@ import type {
   ThreadInfo,
   WebhookOptions,
 } from "chat";
-import { ConsoleLogger, convertEmojiPlaceholders, Message } from "chat";
+import { convertEmojiPlaceholders, Message } from "chat";
 import { cardToLinearMarkdown } from "./cards";
 import { LinearFormatConverter } from "./markdown";
 import type {
@@ -101,7 +101,7 @@ export class LinearAdapter
   private linearClient!: LinearClient;
   private readonly webhookSecret: string;
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private _botUserId: string | null = null;
   private readonly formatConverter = new LinearFormatConverter();
 
@@ -127,7 +127,9 @@ export class LinearAdapter
       );
     }
     this.webhookSecret = webhookSecret;
-    this.logger = config.logger ?? new ConsoleLogger("info").child("linear");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName =
       config.userName ?? process.env.LINEAR_BOT_USERNAME ?? "linear-bot";
 
@@ -172,6 +174,7 @@ export class LinearAdapter
 
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
 
     // For client credentials mode, fetch an access token first
     if (this.clientCredentials) {

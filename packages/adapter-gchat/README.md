@@ -165,7 +165,7 @@ All options are auto-detected from environment variables when not provided.
 | `googleChatProjectNumber` | No | GCP project number for direct webhook JWT verification. Auto-detected from `GOOGLE_CHAT_PROJECT_NUMBER` |
 | `impersonateUser` | No | User email for domain-wide delegation. Auto-detected from `GOOGLE_CHAT_IMPERSONATE_USER` |
 | `auth` | No | Custom auth object (advanced) |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("gchat")` when omitted |
 
 *Either `credentials`, `GOOGLE_CHAT_CREDENTIALS` env var, `useApplicationDefaultCredentials`, or `GOOGLE_CHAT_USE_ADC=true` is required.
 

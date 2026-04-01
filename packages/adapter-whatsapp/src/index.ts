@@ -19,7 +19,6 @@ import type {
   WebhookOptions,
 } from "chat";
 import {
-  ConsoleLogger,
   convertEmojiPlaceholders,
   defaultEmojiResolver,
   getEmoji,
@@ -126,7 +125,7 @@ export class WhatsAppAdapter
   private readonly verifyToken: string;
   private readonly graphApiUrl: string;
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private _botUserId: string | null = null;
   private readonly formatConverter = new WhatsAppFormatConverter();
 
@@ -140,7 +139,9 @@ export class WhatsAppAdapter
     this.appSecret = config.appSecret;
     this.phoneNumberId = config.phoneNumberId;
     this.verifyToken = config.verifyToken;
-    this.logger = config.logger;
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName = config.userName;
     const apiVersion = config.apiVersion ?? DEFAULT_API_VERSION;
     this.graphApiUrl = `https://graph.facebook.com/${apiVersion}`;
@@ -151,6 +152,7 @@ export class WhatsAppAdapter
    */
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
 
     // The bot's "user ID" is the phone number ID
     this._botUserId = this.phoneNumberId;
@@ -1184,8 +1186,6 @@ export function createWhatsAppAdapter(config?: {
   userName?: string;
   verifyToken?: string;
 }): WhatsAppAdapter {
-  const logger = config?.logger ?? new ConsoleLogger("info").child("whatsapp");
-
   const accessToken = config?.accessToken ?? process.env.WHATSAPP_ACCESS_TOKEN;
   if (!accessToken) {
     throw new ValidationError(
@@ -1226,9 +1226,9 @@ export function createWhatsAppAdapter(config?: {
     accessToken,
     apiVersion: config?.apiVersion,
     appSecret,
+    logger: config?.logger,
     phoneNumberId,
     verifyToken,
     userName,
-    logger,
   });
 }

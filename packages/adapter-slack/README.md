@@ -188,7 +188,7 @@ All options are auto-detected from environment variables when not provided. You 
 | `clientSecret` | No | App client secret for multi-workspace OAuth. Auto-detected from `SLACK_CLIENT_SECRET` |
 | `encryptionKey` | No | AES-256-GCM key for encrypting stored tokens. Auto-detected from `SLACK_ENCRYPTION_KEY` |
 | `installationKeyPrefix` | No | Prefix for the state key used to store workspace installations. Defaults to `slack:installation`. The full key is `{prefix}:{teamId}` |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("slack")` when omitted |
 
 *`signingSecret` is required — either via config or `SLACK_SIGNING_SECRET` env var.
 

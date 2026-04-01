@@ -221,7 +221,7 @@ You typically don't need to construct these yourself — they're provided by the
 
 ## Logging
 
-The `logger` option is optional — if omitted, Chat SDK uses `ConsoleLogger("info")` by default. Each adapter also creates its own child logger automatically.
+The `logger` option is optional. If omitted, Chat SDK uses `ConsoleLogger("info")` by default.
 
 ```typescript title="lib/bot.ts" lineNumbers
 // Use defaults (ConsoleLogger at "info" level)
@@ -235,7 +235,7 @@ const bot = new Chat({
   logger: "debug", // "debug" | "info" | "warn" | "error" | "silent"
 });
 
-// Or use a custom ConsoleLogger for child loggers
+// Or use a custom ConsoleLogger
 import { ConsoleLogger } from "chat";
 
 const logger = new ConsoleLogger("info");

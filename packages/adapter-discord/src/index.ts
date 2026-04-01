@@ -32,7 +32,6 @@ import type {
   WebhookOptions,
 } from "chat";
 import {
-  ConsoleLogger,
   convertEmojiPlaceholders,
   defaultEmojiResolver,
   getEmoji,
@@ -90,7 +89,7 @@ export class DiscordAdapter implements Adapter<DiscordThreadId, unknown> {
   private readonly applicationId: string;
   private readonly mentionRoleIds: string[];
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private readonly formatConverter = new DiscordFormatConverter();
   private readonly requestContext =
     new AsyncLocalStorage<DiscordRequestContext>();
@@ -133,20 +132,21 @@ export class DiscordAdapter implements Adapter<DiscordThreadId, unknown> {
         ? process.env.DISCORD_MENTION_ROLE_IDS.split(",").map((id) => id.trim())
         : []);
     this.botUserId = applicationId; // Discord app ID is the bot's user ID
-    this.logger = config.logger ?? new ConsoleLogger("info").child("discord");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName = config.userName ?? "bot";
+  }
 
-    // Validate public key format
+  async initialize(chat: ChatInstance): Promise<void> {
+    this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
     if (!HEX_64_PATTERN.test(this.publicKey)) {
       this.logger.error("Invalid Discord public key format", {
         length: this.publicKey.length,
         isHex: HEX_PATTERN.test(this.publicKey),
       });
     }
-  }
-
-  async initialize(chat: ChatInstance): Promise<void> {
-    this.chat = chat;
     this.logger.info("Discord adapter initialized");
   }
 

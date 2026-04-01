@@ -144,7 +144,7 @@ All options are auto-detected from environment variables when not provided. Inte
 | `appType` | No | `"MultiTenant"` or `"SingleTenant"` (default: `"MultiTenant"`) |
 | `appTenantId` | For SingleTenant | Azure AD Tenant ID. Auto-detected from `TEAMS_APP_TENANT_ID` |
 | `userName` | No | Bot display name (default: `"bot"`) |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("teams")` when omitted |
 
 \*`appId` is required — either via config or `TEAMS_APP_ID` env var.
 

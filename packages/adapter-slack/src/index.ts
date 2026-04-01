@@ -42,7 +42,6 @@ import type {
 } from "chat";
 
 import {
-  ConsoleLogger,
   convertEmojiPlaceholders,
   defaultEmojiResolver,
   isJSX,
@@ -111,7 +110,7 @@ export interface SlackAdapterConfig {
    * Defaults to `slack:installation`. The full key will be `{prefix}:{teamId}`.
    */
   installationKeyPrefix?: string;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("slack"). */
   logger?: Logger;
   /** Signing secret for webhook verification. Defaults to SLACK_SIGNING_SECRET env var. */
   signingSecret?: string;
@@ -370,7 +369,7 @@ export class SlackAdapter implements Adapter<SlackThreadId, unknown> {
   private readonly signingSecret: string;
   private readonly defaultBotToken: string | undefined;
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private _botUserId: string | null = null;
   private _botId: string | null = null; // Bot app ID (B_xxx) - different from user ID
   private readonly formatConverter = new SlackFormatConverter();
@@ -431,7 +430,9 @@ export class SlackAdapter implements Adapter<SlackThreadId, unknown> {
     this.client = new WebClient(botToken);
     this.signingSecret = signingSecret;
     this.defaultBotToken = botToken;
-    this.logger = config.logger ?? new ConsoleLogger("info").child("slack");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName = config.userName || "bot";
     this._botUserId = config.botUserId || null;
 
@@ -481,6 +482,7 @@ export class SlackAdapter implements Adapter<SlackThreadId, unknown> {
 
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
 
     // Only fetch bot user ID in single-workspace mode (when default token is available)
     if (this.defaultBotToken && !this._botUserId) {

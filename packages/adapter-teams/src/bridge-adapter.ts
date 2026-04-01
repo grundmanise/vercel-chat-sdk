@@ -17,9 +17,13 @@ import type { Logger, WebhookOptions } from "chat";
 export class BridgeHttpAdapter implements IHttpServerAdapter {
   private handler: HttpRouteHandler | null = null;
   private readonly webhookOptionsMap = new Map<string, WebhookOptions>();
-  private readonly logger: Logger;
+  private logger?: Logger;
 
-  constructor(logger: Logger) {
+  constructor(logger?: Logger) {
+    this.logger = logger;
+  }
+
+  setLogger(logger: Logger): void {
     this.logger = logger;
   }
 
@@ -36,13 +40,13 @@ export class BridgeHttpAdapter implements IHttpServerAdapter {
     options?: WebhookOptions
   ): Promise<Response> {
     const body = await request.text();
-    this.logger.debug("Teams webhook raw body", { body });
+    this.logger?.debug("Teams webhook raw body", { body });
 
     let parsedBody: unknown;
     try {
       parsedBody = JSON.parse(body);
     } catch (e) {
-      this.logger.error("Failed to parse request body", { error: e });
+      this.logger?.error("Failed to parse request body", { error: e });
       return new Response("Invalid JSON", { status: 400 });
     }
 
@@ -74,7 +78,7 @@ export class BridgeHttpAdapter implements IHttpServerAdapter {
         }
       );
     } catch (error) {
-      this.logger.error("Bridge adapter dispatch error", { error });
+      this.logger?.error("Bridge adapter dispatch error", { error });
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },

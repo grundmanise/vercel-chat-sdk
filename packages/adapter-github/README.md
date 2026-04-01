@@ -178,7 +178,7 @@ All options are auto-detected from environment variables when not provided.
 | `webhookSecret` | No** | Webhook secret. Auto-detected from `GITHUB_WEBHOOK_SECRET` |
 | `userName` | No | Bot username for @mention detection. Auto-detected from `GITHUB_BOT_USERNAME` (default: `"github-bot"`) |
 | `botUserId` | No | Bot's numeric user ID (auto-detected if not provided) |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("github")` when omitted |
 
 *Either `token`/`GITHUB_TOKEN` or `appId`+`privateKey`/`GITHUB_APP_ID`+`GITHUB_PRIVATE_KEY` is required.
 

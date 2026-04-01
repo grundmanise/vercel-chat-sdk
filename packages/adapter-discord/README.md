@@ -157,7 +157,7 @@ All options are auto-detected from environment variables when not provided.
 | `publicKey` | No* | Application public key. Auto-detected from `DISCORD_PUBLIC_KEY` |
 | `applicationId` | No* | Discord application ID. Auto-detected from `DISCORD_APPLICATION_ID` |
 | `mentionRoleIds` | No | Array of role IDs that trigger mention handlers. Auto-detected from `DISCORD_MENTION_ROLE_IDS` (comma-separated) |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("discord")` when omitted |
 
 *`botToken`, `publicKey`, and `applicationId` are required — either via config or env vars.
 

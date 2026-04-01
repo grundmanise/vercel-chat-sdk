@@ -27,7 +27,7 @@ export interface WhatsAppAdapterConfig {
   /** Meta App Secret for webhook HMAC-SHA256 signature verification */
   appSecret: string;
   /** Logger instance for error reporting */
-  logger: Logger;
+  logger?: Logger;
   /** WhatsApp Business phone number ID (not the phone number itself) */
   phoneNumberId: string;
   /** Bot display name used for identification */

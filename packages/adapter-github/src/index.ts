@@ -22,7 +22,7 @@ import type {
   ThreadInfo,
   WebhookOptions,
 } from "chat";
-import { ConsoleLogger, convertEmojiPlaceholders, Message } from "chat";
+import { convertEmojiPlaceholders, Message } from "chat";
 import { cardToGitHubMarkdown } from "./cards";
 import { GitHubFormatConverter } from "./markdown";
 import type {
@@ -117,7 +117,7 @@ export class GitHubAdapter
 
   private readonly webhookSecret: string;
   private chat: ChatInstance | null = null;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private _botUserId: number | null = null;
   private readonly formatConverter = new GitHubFormatConverter();
 
@@ -141,7 +141,9 @@ export class GitHubAdapter
       );
     }
     this.webhookSecret = webhookSecret;
-    this.logger = config.logger ?? new ConsoleLogger("info").child("github");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     this.userName =
       config.userName ?? process.env.GITHUB_BOT_USERNAME ?? "github-bot";
     this._botUserId = config.botUserId ?? null;
@@ -182,9 +184,6 @@ export class GitHubAdapter
           appId: config.appId,
           privateKey: config.privateKey,
         };
-        this.logger.info(
-          "GitHub adapter initialized in multi-tenant mode (installation ID will be extracted from webhooks)"
-        );
       }
     } else if (hasExplicitAuth) {
       // Some auth fields were provided but not enough to configure
@@ -212,9 +211,6 @@ export class GitHubAdapter
             });
           } else {
             this.appCredentials = { appId, privateKey };
-            this.logger.info(
-              "GitHub adapter initialized in multi-tenant mode (installation ID will be extracted from webhooks)"
-            );
           }
         } else {
           throw new ValidationError(
@@ -276,6 +272,12 @@ export class GitHubAdapter
 
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
+    if (this.isMultiTenant) {
+      this.logger.info(
+        "GitHub adapter initialized in multi-tenant mode (installation ID will be extracted from webhooks)"
+      );
+    }
 
     // Fetch bot user ID if not provided (only works for single-tenant or PAT mode)
     if (!this._botUserId && this.octokit) {

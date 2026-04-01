@@ -12,7 +12,7 @@ export interface TelegramAdapterConfig {
   apiBaseUrl?: string;
   /** Telegram bot token from BotFather. Defaults to TELEGRAM_BOT_TOKEN env var. */
   botToken?: string;
-  /** Logger instance for error reporting. Defaults to ConsoleLogger. */
+  /** Logger instance for error reporting. Defaults to chat.getLogger("telegram"). */
   logger?: Logger;
   /** Optional long-polling configuration for getUpdates flow. */
   longPolling?: TelegramLongPollingConfig;

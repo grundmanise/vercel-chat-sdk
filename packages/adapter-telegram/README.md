@@ -119,7 +119,7 @@ All options are auto-detected from environment variables when not provided.
 | `longPolling` | No | Optional long polling config for `getUpdates` (`timeout`, `limit`, `allowedUpdates`, `deleteWebhook`, `dropPendingUpdates`, `retryDelayMs`) |
 | `userName` | No | Bot username used for mention detection. Auto-detected from `TELEGRAM_BOT_USERNAME` or `getMe` |
 | `apiBaseUrl` | No | Telegram API base URL. Auto-detected from `TELEGRAM_API_BASE_URL` |
-| `logger` | No | Logger instance (defaults to `ConsoleLogger("info")`) |
+| `logger` | No | Logger instance. Defaults to `chat.getLogger("telegram")` when omitted |
 
 *`botToken` is required — either via config or env vars.
 

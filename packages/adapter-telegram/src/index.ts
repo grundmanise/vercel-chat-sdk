@@ -26,7 +26,6 @@ import type {
   WebhookOptions,
 } from "chat";
 import {
-  ConsoleLogger,
   convertEmojiPlaceholders,
   defaultEmojiResolver,
   getEmoji,
@@ -197,7 +196,7 @@ export class TelegramAdapter
   private readonly apiBaseUrl: string;
   private readonly secretToken?: string;
   private warnedNoVerification = false;
-  private readonly logger: Logger;
+  private logger!: Logger;
   private readonly formatConverter = new TelegramFormatConverter();
   private readonly messageCache = new Map<
     string,
@@ -248,7 +247,9 @@ export class TelegramAdapter
     );
     this.secretToken =
       config.secretToken ?? process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
-    this.logger = config.logger ?? new ConsoleLogger("info").child("telegram");
+    if (config.logger) {
+      this.logger = config.logger;
+    }
     const userName = config.userName ?? process.env.TELEGRAM_BOT_USERNAME;
     this._userName = this.normalizeUserName(userName ?? "bot");
     this.hasExplicitUserName = Boolean(userName);
@@ -265,6 +266,7 @@ export class TelegramAdapter
 
   async initialize(chat: ChatInstance): Promise<void> {
     this.chat = chat;
+    this.logger ??= chat.getLogger(this.name);
 
     if (!this.hasExplicitUserName) {
       // Runtime JS consumers can omit Chat.userName even though TS marks it required.
