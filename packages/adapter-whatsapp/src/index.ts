@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { extractCard, ValidationError } from "@chat-adapter/shared";
+import {
+  AdapterError,
+  extractCard,
+  ValidationError,
+} from "@chat-adapter/shared";
 import type {
   Adapter,
   AdapterPostableMessage,
@@ -978,35 +982,35 @@ export class WhatsAppAdapter
     }
 
     if (status) {
-      this.logger.warn(
-        "WhatsApp typing indicator ignores custom status text",
-        { status, threadId, messageId }
-      );
+      this.logger.warn("WhatsApp typing indicator ignores custom status text", {
+        status,
+        threadId,
+        messageId,
+      });
     }
 
-    try {
-      const response = await this.graphApiRequest<WhatsAppTypingIndicatorResponse>(`/${this.phoneNumberId}/messages`, {
-        messaging_product: "whatsapp",
-        status: "read",
-        message_id: messageId,
-        typing_indicator: {
-          type: "text",
-        },
-      });
+    const response =
+      await this.graphApiRequest<WhatsAppTypingIndicatorResponse>(
+        `/${this.phoneNumberId}/messages`,
+        {
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: messageId,
+          typing_indicator: {
+            type: "text",
+          },
+        }
+      );
 
-      if (!response.success) {
-        this.logger.error("WhatsApp typing indicator failed", {
+    if (!response.success) {
+      this.logger.error(
+        "WhatsApp typing indicator failed: API returned success=false",
+        {
           messageId,
           threadId,
-        });
-        throw new Error("WhatsApp typing indicator failed");
-      }
-    } catch (error) {
-      this.logger.error("WhatsApp typing indicator failed", {
-        error,
-        messageId,
-        threadId,
-      });
+        }
+      );
+      throw new AdapterError("WhatsApp typing indicator failed", "whatsapp");
     }
   }
 
@@ -1217,7 +1221,10 @@ export class WhatsAppAdapter
         body: errorBody,
         path,
       });
-      throw new Error(`WhatsApp API error: ${response.status} ${errorBody}`);
+      throw new AdapterError(
+        `WhatsApp API error: ${response.status} ${errorBody}`,
+        "whatsapp"
+      );
     }
 
     return response.json() as Promise<T>;
